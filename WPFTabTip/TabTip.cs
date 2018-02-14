@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Win32;
@@ -55,11 +56,34 @@ namespace WPFTabTip
         /// </summary>
         public static void Open()
         {
+            const string TabTipProcessName = "TabTip";
             if (EnvironmentEx.GetOSVersion() == OSVersion.Win10)
                 EnableTabTipOpenInDesctopModeOnWin10();
 
-            Process.Start(TabTipExecPath);
+            if (Process.GetProcessesByName(TabTipProcessName).Count() == 0)
+            {
+
+                Process.Start(TabTipExecPath);
+            }
+            else
+            {
+                try
+                {//Close Previously opened keyboard
+                    if (Process.GetProcessesByName(TabTipProcessName).FirstOrDefault() != null)
+                        Process.GetProcessesByName(TabTipProcessName).FirstOrDefault().Kill();
+                }
+
+                catch //(Access Error)  Sometime it gives Access Problem 
+                { }
+                Task.Yield(); // wait for it to close the keyboard
+
+                Process.Start(TabTipExecPath);
+            }
+
+            //MessageBox.Show(value.HasValue ? value.Value.ToString() : "null");
+            //MessageBox.Show(Process.GetProcessesByName(TabTipProcessName).Count().ToString());
         }
+
 
         private static void EnableTabTipOpenInDesctopModeOnWin10()
         {
@@ -78,12 +102,15 @@ namespace WPFTabTip
             const string TabTipDockedKey = "EdgeTargetDockedState";
             const string TabTipProcessName = "TabTip";
 
-            int docked = (int) (Registry.GetValue(TabTipRegistryKeyName, TabTipDockedKey, 1) ?? 1);
+            int docked = (int)(Registry.GetValue(TabTipRegistryKeyName, TabTipDockedKey, 1) ?? 1);
             if (docked == 1)
             {
                 Registry.SetValue(TabTipRegistryKeyName, TabTipDockedKey, 0);
                 foreach (Process tabTipProcess in Process.GetProcessesByName(TabTipProcessName))
-                    tabTipProcess.Kill();
+                {
+                    //(Access Error)  Sometime it gives Access Problem 
+                    try { tabTipProcess.Kill(); } catch { }
+                }
             }
             Open();
         }
